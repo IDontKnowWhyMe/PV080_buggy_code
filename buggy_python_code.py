@@ -3,6 +3,10 @@ import os
 import yaml
 import urllib
 import flask
+import urllib3
+from urllib.parse import urlparse
+import socket
+import ipaddress
 
 app = flask.Flask(__name__)
 
@@ -24,26 +28,36 @@ def print_nametag(format_string, person):
     print(format_string.format(person=person))
 
 
+#fixed issue 
+ALLOWED_HOSTS = {"example.com", "api.example.org"}
+
+def is_safe_url(url):
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        ip = socket.gethostbyname(hostname)
+        if hostname not in ALLOWED_HOSTS:
+            return False
+        if ipaddress.ip_address(ip).is_private:
+            return False
+        return True
+    except Exception:
+        return False
+
 def fetch_website(urllib_version, url):
-    """Fetches a URL using urllib2 or urllib3 depending on the version input (2 or 3)."""
-    if urllib_version == 2:
-        import urllib2 as urllib
-        http = urllib
-        try:
-            response = http.urlopen(url)
-            print(response.read())
-        except Exception as e:
-            print(f'Exception: {e}')
-    elif urllib_version == 3:
-        import urllib3
-        http = urllib3.PoolManager()
-        try:
-            response = http.request('GET', url)
-            print(response.data.decode())
-        except Exception as e:
-            print(f'Exception: {e}')
-    else:
-        raise ValueError("Invalid urllib_version. Use 2 or 3.")
+    if urllib_version != 3:
+        raise ValueError("Only urllib3 is supported safely")
+
+    if not is_safe_url(url):
+        raise ValueError("Blocked potentially dangerous URL")
+
+    http = urllib3.PoolManager()
+    try:
+        response = http.request('GET', url)
+        print(response.data.decode())
+    except Exception as e:
+        print(f'Exception: {e}')
+
 
 
 
