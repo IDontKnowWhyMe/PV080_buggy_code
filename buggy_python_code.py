@@ -29,34 +29,44 @@ def print_nametag(format_string, person):
 
 
 #fixed issue 
-ALLOWED_HOSTS = {"example.com", "api.example.org"}
 
-def is_safe_url(url):
+
+def is_ip_safe(ip):
     try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        ip = socket.gethostbyname(hostname)
-        if hostname not in ALLOWED_HOSTS:
-            return False
-        if ipaddress.ip_address(ip).is_private:
-            return False
-        return True
-    except Exception:
+        ip_obj = ipaddress.ip_address(ip)
+        return not (
+            ip_obj.is_private or
+            ip_obj.is_loopback or
+            ip_obj.is_link_local or
+            ip_obj.is_multicast or
+            ip_obj.is_reserved
+        )
+    except ValueError:
         return False
 
-def fetch_website(urllib_version, url):
-    if urllib_version != 3:
-        raise ValueError("Only urllib3 is supported safely")
+def resolve_and_validate_url(url):
+    parsed = urlparse(url)
+    if not parsed.scheme.startswith("http"):
+        raise ValueError("Only HTTP(S) allowed")
 
-    if not is_safe_url(url):
-        raise ValueError("Blocked potentially dangerous URL")
+    hostname = parsed.hostname
+    try:
+        ip = socket.gethostbyname(hostname)
+        if not is_ip_safe(ip):
+            raise ValueError("Blocked unsafe destination IP")
+        return url
+    except Exception:
+        raise ValueError("Invalid or unsafe URL")
 
+def fetch_website(url):
+    # Validate and resolve IP before sending request
+    safe_url = resolve_and_validate_url(url)
     http = urllib3.PoolManager()
     try:
-        response = http.request('GET', url)
+        response = http.request('GET', safe_url, timeout=2.0)
         print(response.data.decode())
     except Exception as e:
-        print(f'Exception: {e}')
+        print(f"Request failed: {e}")
 
 
 
