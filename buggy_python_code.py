@@ -31,6 +31,7 @@ def print_nametag(format_string, person):
 #fixed issue 
 
 
+# Block private, local IP addresses and internal network ranges
 def is_ip_safe(ip):
     try:
         ip_obj = ipaddress.ip_address(ip)
@@ -44,29 +45,45 @@ def is_ip_safe(ip):
     except ValueError:
         return False
 
+# Resolve the IP address of the URL's hostname and validate that it's not dangerous
 def resolve_and_validate_url(url):
     parsed = urlparse(url)
+    
+    # Check for valid schemes (http or https only)
     if not parsed.scheme.startswith("http"):
-        raise ValueError("Only HTTP(S) allowed")
+        raise ValueError("Only HTTP(S) URLs are allowed")
 
+    # Get the hostname and check it
     hostname = parsed.hostname
+    if not hostname:
+        raise ValueError("Invalid URL, no hostname")
+
+    # Resolve the hostname to an IP address and check if it's safe
     try:
         ip = socket.gethostbyname(hostname)
         if not is_ip_safe(ip):
-            raise ValueError("Blocked unsafe destination IP")
+            raise ValueError(f"Blocked unsafe destination IP: {ip}")
         return url
-    except Exception:
-        raise ValueError("Invalid or unsafe URL")
+    except Exception as e:
+        raise ValueError(f"Error resolving hostname or IP: {e}")
 
+# Function to fetch the website, ensuring it's safe
 def fetch_website(url):
-    # Validate and resolve IP before sending request
-    safe_url = resolve_and_validate_url(url)
+    # Validate and resolve the URL before attempting the request
+    try:
+        safe_url = resolve_and_validate_url(url)
+    except ValueError as ve:
+        print(f"URL validation failed: {ve}")
+        return
+    
+    # If URL is safe, proceed with the request
     http = urllib3.PoolManager()
     try:
         response = http.request('GET', safe_url, timeout=2.0)
         print(response.data.decode())
     except Exception as e:
         print(f"Request failed: {e}")
+
 
 
 
