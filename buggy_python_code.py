@@ -25,16 +25,26 @@ def print_nametag(format_string, person):
 
 
 def fetch_website(urllib_version, url):
-    """docstring"""
-    # Import the requested version (2 or 3) of urllib
-    exec(f"import urllib{urllib_version} as urllib", globals())
-    # Fetch and print the requested URL
+    """Fetches a URL using urllib2 or urllib3 depending on the version input (2 or 3)."""
+    if urllib_version == 2:
+        import urllib2 as urllib
+        http = urllib
+        try:
+            response = http.urlopen(url)
+            print(response.read())
+        except Exception as e:
+            print(f'Exception: {e}')
+    elif urllib_version == 3:
+        import urllib3
+        http = urllib3.PoolManager()
+        try:
+            response = http.request('GET', url)
+            print(response.data.decode())
+        except Exception as e:
+            print(f'Exception: {e}')
+    else:
+        raise ValueError("Invalid urllib_version. Use 2 or 3.")
 
-    try:
-        http = urllib.PoolManager()
-        r = http.request('GET', url)
-    except:
-        print('Exception')
 
 
 def load_yaml(filename):
